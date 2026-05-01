@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMC Controle - Monitorização Ambiental</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuração do Tema Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        serif: ['"Times New Roman"', 'Times', 'serif'], // Fonte para documento oficial
+                    },
+                    colors: {
+                        agro: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981', // Emerald 500
+                            600: '#059669', // Emerald 600
+                            700: '#047857', // Emerald 700
+                            800: '#065f46',
+                            900: '#064e3b',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)',
+                        'paper': '0 20px 40px -5px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.4s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(15px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js para Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- html2pdf para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { background-color: #f8fafc; }
+        
+        .glass-panel { 
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.8); 
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.03);
+            border-radius: 20px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: slideUp 0.4s ease-out forwards; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        input[type="file"] { display: none; }
+        
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-color: #d1fae5;
+        }
+        
+        /* Campos Editáveis no Relatório com design limpo */
+        [contenteditable="true"] {
+            border-bottom: 1px dashed transparent;
+            transition: all 0.2s;
+            outline: none;
+            cursor: text;
+        }
+        [contenteditable="true"]:hover {
+            border-bottom: 1px dashed #94a3b8;
+            background-color: rgba(248, 250, 252, 0.5);
+        }
+        [contenteditable="true"]:focus {
+            border-bottom: 1px dashed #10b981;
+            background-color: #f0fdf4;
+        }
+
+        /* Otimização para impressão PDF - Simulando Papel A4 */
+        #area-relatorio-pdf {
+            background: white;
+            max-width: 210mm; /* Largura A4 */
+            margin: 0 auto;
+            padding: 25mm 20mm; /* Margens padrão de ofício */
+            box-shadow: 0 20px 40px -5px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05);
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            color: #000;
+            line-height: 1.5;
+        }
+
+        .pdf-mode {
+            padding: 20mm 15mm !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-shadow: none !important;
+        }
+        .pdf-mode [contenteditable="true"] {
+            border: none !important;
+            background-color: transparent !important;
+        }
+        .pdf-mode .hide-on-pdf {
+            display: none !important;
+        }
+
+        /* Quebras de Página */
+        .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+        .page-break-before { page-break-before: always; break-before: page; }
+        
+        /* Estilo da Tabela Oficial - Ultra Profissional */
+        .tabela-oficial { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 24px; 
+            font-size: 10pt; 
+            font-family: 'Arial', sans-serif; /* Tabelas ficam melhores em sans-serif */
+        }
+        .tabela-oficial th, .tabela-oficial td { 
+            border: 1px solid #333; 
+            padding: 8px 10px; 
+            text-align: left; 
+            vertical-align: middle;
+        }
+        .tabela-oficial th { 
+            background-color: #f1f5f9; 
+            font-weight: bold; 
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 9pt;
+            letter-spacing: 0.05em;
+        }
+        .titulo-secao-oficial {
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            font-size: 10pt;
+            background-color: #e2e8f0;
+            padding: 4px 8px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            border: 1px solid #333;
+        }
+
+        /* Controle Absoluto das Proporções dos Gráficos para o PDF */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 220px; /* Altura ideal na tela normal */
+        }
+        .pdf-mode .chart-container {
+            width: 100% !important;
+            height: 200px !important; /* Tranca a altura ao gerar PDF */
+            min-height: 200px !important;
+            max-height: 200px !important;
+            overflow: hidden !important;
+            page-break-inside: avoid !important;
+        }
+        .pdf-mode canvas {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 200px !important; /* Impede o canvas de esticar para fora */
+        }
+        
+        /* Estilo para drag and drop ativo */
+        .dropzone-active {
+            border-color: #10b981 !important;
+            background-color: #ecfdf5 !important;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col md:flex-row overflow-hidden font-sans">
+
+    <!-- Modal para Imagens -->
+    <div id="imageModal" class="hidden fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 opacity-0">
+        <button onclick="fecharModalImagem()" class="absolute top-6 right-6 text-white hover:text-rose-500 transition-colors z-50 bg-white/10 hover:bg-white/20 p-3 rounded-full w-12 h-12 flex items-center justify-center">
+            <i class="fa-solid fa-xmark text-2xl"></i>
+        </button>
+        <img id="modalImageSrc" src="" alt="Foto Ampliada" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
+    </div>
+
+    <!-- Menu Lateral (Sidebar) Elegante -->
+    <nav class="bg-[#0f172a] text-slate-300 w-full md:w-72 flex-shrink-0 z-20 flex flex-col h-auto md:h-screen shadow-[4px_0_24px_rgba(0,0,0,0.1)] relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-br from-agro-600/20 to-transparent pointer-events-none"></div>
+
+        <div class="p-8 flex items-center justify-center md:justify-start gap-4 border-b border-slate-800/50 relative z-10">
+            <div class="bg-gradient-to-br from-agro-400 to-agro-600 p-2.5 rounded-xl shadow-lg shadow-agro-500/30 flex items-center justify-center">
+                <i class="fa-solid fa-leaf text-2xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-extrabold tracking-tight text-white leading-none">LMC<span class="text-agro-400">Controle</span></h1>
+                <p class="text-[10px] uppercase tracking-widest text-slate-400 mt-1 font-semibold">Monitorização Ambiental</p>
+            </div>
+        </div>
+        
+        <div class="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto px-4 py-8 gap-3 flex-1 relative z-10">
+            <p class="hidden md:block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">Gestão de Dados</p>
+            
+            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn active flex-1 md:flex-none flex items-center gap-4 px-5 py-3.5 rounded-xl bg-agro-600/10 text-agro-400 transition-all whitespace-nowrap shadow-sm border border-agro-500/20 font-medium">
+                <i class="fa-solid fa-chart-pie w-5 text-center text-lg"></i> <span>Visão Central</span>
+            </button>
+            <button onclick="switchTab('registro')" id="btn-registro" class="nav-btn flex-1 md:flex-none flex items-center gap-4 px-5 py-3.5 rounded-xl hover:bg-slate-800 transition-all text-slate-400 hover:text-white whitespace-nowrap border border-transparent font-medium">
+                <i class="fa-solid fa-plus-circle w-5 text-center text-lg"></i> <span>Novo Registo</span>
+            </button>
+            <button onclick="switchTab('historico')" id="btn-historico" class="nav-btn flex-1 md:flex-none flex items-center gap-4 px-5 py-3.5 rounded-xl hover:bg-slate-800 transition-all text-slate-400 hover:text-white whitespace-nowrap border border-transparent font-medium">
+                <i class="fa-solid fa-list-ul w-5 text-center text-lg"></i> <span>Base Histórica</span>
+            </button>
+            
+            <div class="hidden md:block my-4 border-t border-slate-800/50"></div>
+            <p class="hidden md:block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">Exportação</p>
+
+            <button onclick="switchTab('relatorios')" id="btn-relatorios" class="nav-btn flex-1 md:flex-none flex items-center gap-4 px-5 py-3.5 rounded-xl hover:bg-slate-800 transition-all text-slate-400 hover:text-white whitespace-nowrap border border-transparent font-medium">
+                <i class="fa-solid fa-file-contract w-5 text-center text-lg"></i> <span>Ofício Oficial / PDF</span>
+            </button>
+        </div>
+
+        <div class="hidden md:block p-6 bg-slate-900/50 text-xs text-slate-400 relative z-10 border-t border-slate-800/50">
+            <div class="flex items-center gap-2 mb-1">
+                <div id="status-db-indicator" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                <span id="status-db-text" class="font-semibold text-slate-300">A ligar ao Banco de Dados...</span>
+            </div>
+            <p class="opacity-70 mt-2">Licenciado para Agropecuária Cananova LTDA.</p>
+        </div>
+    </nav>
+
+    <!-- Área Principal -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden bg-[#f4f7f6]">
+        
+        <!-- Header Superior Clean -->
+        <header class="bg-white/70 backdrop-blur-lg border-b border-slate-200/60 h-20 flex items-center justify-between px-8 flex-shrink-0 z-10 sticky top-0">
+            <div class="flex items-center gap-4">
+                <h2 id="header-title" class="text-2xl font-bold text-slate-800 hidden md:block tracking-tight">Agropecuária Cananova</h2>
+            </div>
+            <div class="flex items-center gap-5">
+                <button class="w-10 h-10 rounded-full bg-slate-50 text-slate-500 hover:text-agro-600 hover:bg-agro-50 transition-all relative flex items-center justify-center border border-slate-200">
+                    <i class="fa-regular fa-bell"></i>
+                    <span class="absolute top-2 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
+                </button>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <div class="flex items-center gap-3 cursor-pointer group p-1.5 rounded-full hover:bg-slate-50 transition-all pr-4">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-agro-100 to-agro-200 flex items-center justify-center text-agro-700 font-bold overflow-hidden shadow-inner border border-agro-200">
+                        <i class="fa-solid fa-cloud"></i>
+                    </div>
+                    <div class="text-right hidden sm:block">
+                        <p class="text-sm font-bold text-slate-700 group-hover:text-agro-600 transition-colors leading-tight">Servidor Cloud</p>
+                        <p class="text-xs text-slate-500 font-medium">Sincronizado</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Conteúdo Scrollável -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 relative" id="main-scroll-area">
+            
+            <!-- ================= TAB: DASHBOARD ================= -->
+            <section id="tab-dashboard" class="tab-content active w-full max-w-7xl mx-auto">
+                
+                <!-- Cards de Métricas -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-[20px] shadow-soft border border-slate-100 card-hover relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-agro-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+                        <div class="flex justify-between items-start z-10">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Total Capturado</p>
+                                <h3 class="text-4xl font-extrabold text-slate-800 tracking-tight" id="dash-total">0</h3>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-agro-400 to-agro-600 text-white flex items-center justify-center shadow-lg shadow-agro-500/30">
+                                <i class="fa-solid fa-bug text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[20px] shadow-soft border border-slate-100 card-hover relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+                        <div class="flex justify-between items-start z-10">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Registos Salvos</p>
+                                <h3 class="text-4xl font-extrabold text-slate-800 tracking-tight" id="dash-registros">0</h3>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
+                                <i class="fa-solid fa-database text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[20px] shadow-soft border border-slate-100 card-hover relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+                        <div class="flex justify-between items-start z-10">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Área Crítica</p>
+                                <h3 class="text-2xl font-extrabold text-slate-800 truncate max-w-[140px] leading-tight" id="dash-critica">-</h3>
+                                <p class="text-xs text-rose-600 mt-2 font-bold bg-rose-50 inline-block px-2 py-1 rounded-md" id="dash-critica-qtd"></p>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/30">
+                                <i class="fa-solid fa-location-crosshairs text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[20px] shadow-soft border border-slate-100 card-hover relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+                        <div class="flex justify-between items-start z-10">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-500 mb-2 uppercase tracking-wide">Média (Índice)</p>
+                                <div class="flex items-baseline gap-1">
+                                    <h3 class="text-4xl font-extrabold text-slate-800 tracking-tight" id="dash-media">0</h3>
+                                    <span class="text-sm font-bold text-slate-400">/coleta</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30">
+                                <i class="fa-solid fa-chart-line text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos de Evolução e Clima (NOVO: CORRELAÇÃO DE CLIMA COMPLETA) -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+                    
+                    <!-- Gráfico de Linhas (Índice Diário) -->
+                    <div id="panel-evolucao" class="glass-panel p-8 animate-fade-in flex flex-col bg-white">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="text-lg font-extrabold text-slate-800">Evolução do Índice Populacional</h3>
+                                <p class="text-sm text-slate-500 font-medium mt-1">Defina o período de análise da curva.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2" data-html2canvas-ignore="true">
+                                <input type="date" id="dashFiltroInicio" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-2 focus:ring-agro-500 outline-none w-32">
+                                <input type="date" id="dashFiltroFim" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-2 focus:ring-agro-500 outline-none w-32">
+                                <button onclick="aplicarFiltroDashboard()" class="bg-agro-600 hover:bg-agro-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors" title="Filtrar"><i class="fa-solid fa-filter"></i></button>
+                                <button onclick="limparFiltroDashboard()" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs transition-colors shadow-sm" title="Limpar"><i class="fa-solid fa-rotate-right"></i></button>
+                                <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                                <button onclick="exportarGraficoPDF('panel-evolucao', 'Evolucao_Populacional')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2" title="Exportar este Gráfico"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Estatísticas Rápidas Evolução -->
+                        <div class="flex gap-4 mb-5 text-sm">
+                            <div class="bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 flex-1 flex flex-col justify-center">
+                                <span class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1"><i class="fa-solid fa-chart-pie mr-1"></i> Média no Período</span>
+                                <strong class="text-slate-800 text-2xl font-black leading-none" id="stat-evo-media">0</strong>
+                            </div>
+                            <div class="bg-rose-50 px-4 py-3 rounded-xl border border-rose-100 flex-1 flex flex-col justify-center">
+                                <span class="text-rose-600 text-[10px] font-bold uppercase tracking-wider mb-1"><i class="fa-solid fa-arrow-trend-up mr-1"></i> Pico Registado</span>
+                                <strong class="text-rose-700 text-2xl font-black leading-none" id="stat-evo-pico">0</strong>
+                            </div>
+                        </div>
+
+                        <div class="chart-container flex-1" style="min-height: 280px;">
+                            <canvas id="dashGraficoLinhas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Correlação Climática Melhorado -->
+                    <div id="panel-clima" class="glass-panel p-8 animate-fade-in flex flex-col bg-white">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="text-lg font-extrabold text-slate-800">Correlação: Clima vs. Infestação</h3>
+                                <p class="text-sm text-slate-500 font-medium mt-1">Impacto da Temperatura Média e Humidade no volume.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2" data-html2canvas-ignore="true">
+                                <input type="date" id="climaFiltroInicio" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none w-32">
+                                <input type="date" id="climaFiltroFim" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none w-32">
+                                <button onclick="aplicarFiltroClima()" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors" title="Filtrar"><i class="fa-solid fa-filter"></i></button>
+                                <button onclick="limparFiltroClima()" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs transition-colors shadow-sm" title="Limpar"><i class="fa-solid fa-rotate-right"></i></button>
+                                <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                                <button onclick="exportarGraficoPDF('panel-clima', 'Correlacao_Climatica')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2" title="Exportar este Gráfico"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            </div>
+                        </div>
+
+                        <!-- Estatísticas Rápidas Clima -->
+                        <div class="flex gap-4 mb-5 text-sm">
+                            <div class="bg-amber-50 px-4 py-3 rounded-xl border border-amber-100 flex-1 flex flex-col justify-center">
+                                <span class="text-amber-700 text-[10px] font-bold uppercase tracking-wider mb-1"><i class="fa-solid fa-temperature-half mr-1"></i> Temp. Média</span>
+                                <strong class="text-amber-900 text-2xl font-black leading-none" id="stat-cli-temp">0°C</strong>
+                            </div>
+                            <div class="bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 flex-1 flex flex-col justify-center">
+                                <span class="text-blue-700 text-[10px] font-bold uppercase tracking-wider mb-1"><i class="fa-solid fa-droplet mr-1"></i> Humidade Média</span>
+                                <strong class="text-blue-900 text-2xl font-black leading-none" id="stat-cli-hum">0%</strong>
+                            </div>
+                        </div>
+
+                        <div class="chart-container flex-1" style="min-height: 280px;">
+                            <canvas id="dashGraficoClima"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mapa de Calor e Recomendações em Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 glass-panel p-8 animate-fade-in">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="text-lg font-extrabold text-slate-800">Situação por Ponto Chave</h3>
+                                <p class="text-sm text-slate-500 font-medium mt-1">Última leitura baseada no Parâmetro Oficial (Tabela 02).</p>
+                            </div>
+                            <div class="flex bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                <span class="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-slate-600"><div class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div> Livre</span>
+                                <span class="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-slate-600"><div class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"></div> Alerta</span>
+                                <span class="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-slate-600"><div class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div> Risco</span>
+                            </div>
+                        </div>
+                        <div id="heatmap-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5"></div>
+                    </div>
+
+                    <div class="glass-panel p-8 animate-fade-in bg-gradient-to-b from-white to-slate-50">
+                        <h3 class="text-lg font-extrabold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                            <i class="fa-solid fa-clipboard-list text-agro-500"></i> Plano de Ação
+                        </h3>
+                        <ul id="lista-recomendacoes" class="space-y-4"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= TAB: REGISTO ================= -->
+            <section id="tab-registro" class="tab-content w-full max-w-4xl mx-auto">
+                <div class="mb-8 flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight" id="titulo-form">Inserir Monitorização</h2>
+                        <p class="text-slate-500 font-medium mt-1">Preencha o formulário abaixo com rigor. Os dados serão salvos no Banco de Dados.</p>
+                    </div>
+                    <button type="button" id="btn-cancelar-edicao" onclick="cancelarEdicao()" class="hidden bg-rose-50 text-rose-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-rose-100 transition-colors">
+                        <i class="fa-solid fa-xmark mr-1"></i> Cancelar Edição
+                    </button>
+                </div>
+
+                <form id="registroForm" class="glass-panel p-8 md:p-10 shadow-soft flex flex-col gap-8 relative overflow-hidden">
+                    <input type="hidden" id="editId" value="">
+
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-agro-50 to-transparent -z-10 opacity-70"></div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Data da Coleta <span class="text-rose-500">*</span></label>
+                            <input type="date" id="inputData" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-agro-500 focus:bg-white outline-none transition-all font-medium text-slate-700 cursor-pointer">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ponto Chave <span class="text-rose-500">*</span></label>
+                            <select id="inputArmadilha" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-agro-500 focus:bg-white outline-none transition-all font-medium text-slate-700 cursor-pointer">
+                                <option value="" disabled selected>Selecione a Armadilha da Lista Oficial</option>
+                                <option value="1">Arm. 1 (faz. São Paulo)</option>
+                                <option value="2">Arm. 2 (faz. São Paulo)</option>
+                                <option value="3">Arm. 3 (faz. Santa Rita)</option>
+                                <option value="4">Arm. 4 (faz. Santa Rita)</option>
+                                <option value="5">Arm. 5 (faz. Santa Rita)</option>
+                                <option value="6">Arm. 6 (faz. Santa Rita) divisa</option>
+                                <option value="7">Arm. 7 (faz. Morro Agudo)</option>
+                                <option value="8">Arm. 8 (faz. Colina/Boa Esperança)</option>
+                                <option value="9">Arm. 9 (Compostagem)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total de Moscas Estimado/Contado <span class="text-rose-500">*</span></label>
+                        <div class="relative">
+                            <input type="number" id="inputQuantidade" min="0" required placeholder="0" class="w-full pl-16 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-agro-500 focus:bg-white outline-none transition-all font-extrabold text-3xl text-slate-800">
+                            <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-calculator text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Temperatura (°C)</label>
+                            <input type="number" id="inputTemperatura" step="0.1" placeholder="Ex: 28.5" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-agro-500 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Humidade (%)</label>
+                            <input type="number" id="inputHumidade" min="0" max="100" placeholder="Ex: 65" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-agro-500 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Condição Climática</label>
+                            <select id="inputClima" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-agro-500 font-medium cursor-pointer">
+                                <option value="Ensolarado">Ensolarado</option>
+                                <option value="Nublado">Nublado</option>
+                                <option value="Chuvoso">Chuvoso</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Estado da Armad.</label>
+                            <select id="inputCondicao" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-agro-500 font-medium cursor-pointer">
+                                <option value="Boa">Em bom estado</option>
+                                <option value="Manutenção">Necessita Manutenção</option>
+                                <option value="Substituída">Foi Substituída</option>
+                                <option value="Danificada">Danificada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Ação Imediata</label>
+                            <select id="inputAcao" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-agro-500 font-medium cursor-pointer">
+                                <option value="Nenhuma">Nenhuma</option>
+                                <option value="Limpeza Física">Limpeza Física</option>
+                                <option value="Controlo Químico">Controlo Químico</option>
+                                <option value="Manutenção">Manutenção Geral</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Evidência Fotográfica</label>
+                            <button type="button" onclick="removerFotoPreview()" id="btn-remover-foto-container" class="hidden text-[10px] uppercase font-bold text-rose-500 hover:text-rose-700 bg-rose-50 px-2 py-1 rounded">Remover Foto</button>
+                        </div>
+                        <label id="dropzoneFoto" for="inputFoto" class="flex flex-col items-center justify-center w-full h-40 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-agro-400 transition-all relative overflow-hidden group">
+                            <img id="previewFoto" src="" alt="Preview" class="absolute inset-0 w-full h-full object-contain hidden bg-black/5 z-10">
+                            <div class="flex flex-col items-center justify-center text-slate-400 group-hover:text-agro-500 transition-colors z-0">
+                                <div class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-3">
+                                    <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                                </div>
+                                <span class="text-sm font-bold">Clique ou arraste a foto da armadilha aqui</span>
+                                <span class="text-xs font-medium opacity-70 mt-1">Tamanho reduzido automaticamente antes de salvar na DB.</span>
+                            </div>
+                            <input id="inputFoto" type="file" accept="image/*" onchange="processarImagemClick(event)" />
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Observações Adicionais</label>
+                        <textarea id="inputAnotacoes" rows="2" placeholder="Descreva limpezas feitas no curral, estado do feno, etc..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-agro-500 outline-none resize-none font-medium text-slate-700 transition-all focus:bg-white"></textarea>
+                    </div>
+
+                    <button type="button" onclick="salvarFormulario(event)" id="btn-submit-form" class="w-full bg-gradient-to-r from-agro-600 to-agro-500 hover:from-agro-700 hover:to-agro-600 text-white font-extrabold py-4 rounded-xl shadow-lg shadow-agro-500/30 transition-all flex items-center justify-center gap-2 text-lg active:scale-[0.98]">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> <span>Salvar na Base de Dados Cloud</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- ================= TAB: HISTÓRICO ================= -->
+            <section id="tab-historico" class="tab-content w-full max-w-7xl mx-auto">
+                <div class="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-white p-6 rounded-[20px] shadow-sm border border-slate-100">
+                    <div>
+                        <h2 class="text-2xl font-extrabold text-slate-800 tracking-tight">Base de Dados Histórica</h2>
+                        <p class="text-slate-500 font-medium mt-1">Dados sincronizados em tempo real do Servidor Cloud.</p>
+                    </div>
+                    <div class="w-full lg:w-auto flex flex-col sm:flex-row flex-wrap gap-3">
+                        <button onclick="exportarDados()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-3 rounded-xl font-bold shadow-sm transition-colors whitespace-nowrap flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> Exportar CSV
+                        </button>
+                        
+                        <div class="relative w-full sm:w-48">
+                            <select id="ordemHistorico" onchange="renderizarHistorico()" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-3 px-4 pl-10 rounded-xl font-bold outline-none focus:ring-2 focus:ring-agro-500 cursor-pointer">
+                                <option value="recente">Mais Recentes</option>
+                                <option value="antigo">Mais Antigos</option>
+                                <option value="maior">Maior Infestação</option>
+                                <option value="menor">Menor Infestação</option>
+                            </select>
+                            <i class="fa-solid fa-sort absolute left-4 top-3.5 text-slate-400"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-4 top-3.5 text-slate-400 text-xs"></i>
+                        </div>
+
+                        <div class="relative w-full sm:w-64">
+                            <select id="filtroArmadilha" onchange="renderizarHistorico()" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-3 px-4 pl-10 rounded-xl font-bold outline-none focus:ring-2 focus:ring-agro-500 cursor-pointer">
+                                <option value="todas">Todas as Armadilhas</option>
+                                <option value="1">Armadilha 1</option> <option value="2">Armadilha 2</option>
+                                <option value="3">Armadilha 3</option> <option value="4">Armadilha 4</option>
+                                <option value="5">Armadilha 5</option> <option value="6">Armadilha 6</option>
+                                <option value="7">Armadilha 7</option> <option value="8">Armadilha 8</option>
+                                <option value="9">Armadilha 9</option>
+                            </select>
+                            <i class="fa-solid fa-filter absolute left-4 top-3.5 text-slate-400"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-4 top-3.5 text-slate-400 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="historicoContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- ================= TAB: RELATÓRIOS (USADO PARA PDF OFICIAL) ================= -->
+            <section id="tab-relatorios" class="tab-content w-full mx-auto">
+                
+                <div class="mb-6 max-w-5xl mx-auto" id="relatorios-header">
+                    <div class="glass-panel p-6 mb-6 flex flex-col lg:flex-row justify-between items-center gap-6 shadow-sm border border-indigo-100 bg-gradient-to-r from-white to-indigo-50/30">
+                        <div>
+                            <h2 class="text-2xl font-extrabold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-print text-indigo-600"></i> Centro de Impressão</h2>
+                            <p class="text-slate-500 text-sm font-medium mt-1">Configure o período e edite o documento antes de gerar o Ofício PDF.</p>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <input type="file" id="inputImportarBackup" accept=".json" onchange="importarBackup(event)" class="hidden">
+                            <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                <button onclick="document.getElementById('inputImportarBackup').click()" class="hover:bg-white text-slate-600 px-3 py-1.5 rounded-md text-xs font-bold transition-all shadow-sm"><i class="fa-solid fa-cloud-arrow-up text-blue-500 mr-1"></i> Importar p/ DB</button>
+                                <button onclick="exportarBackup()" class="hover:bg-white text-slate-600 px-3 py-1.5 rounded-md text-xs font-bold transition-all shadow-sm"><i class="fa-solid fa-download text-agro-600 mr-1"></i> Backup JSON</button>
+                                <button onclick="exportarDados()" class="hover:bg-white text-slate-600 px-3 py-1.5 rounded-md text-xs font-bold transition-all shadow-sm"><i class="fa-solid fa-table text-slate-700 mr-1"></i> Excel CSV</button>
+                            </div>
+                            <button onclick="exportarPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2 transform active:scale-95">
+                                <i class="fa-solid fa-file-pdf"></i> Gerar Ofício PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col md:flex-row gap-5 items-end shadow-sm">
+                        <div class="flex-1 w-full relative">
+                            <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 pl-1">Filtrar a Partir de</label>
+                            <input type="date" id="filtroDataInicio" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div class="flex-1 w-full relative">
+                            <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 pl-1">Filtrar Até</label>
+                            <input type="date" id="filtroDataFim" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <button onclick="aplicarFiltroRelatorio()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow transition-colors">Aplicar</button>
+                            <button onclick="limparFiltroRelatorio()" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hide-on-pdf mb-4 max-w-5xl mx-auto text-center">
+                    <span class="inline-block bg-blue-50 text-blue-600 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                        <i class="fa-solid fa-pen-nib mr-1"></i> Clique em qualquer texto do documento abaixo para o editar livremente antes de imprimir.
+                    </span>
+                </div>
+
+                <!-- DOCUMENTO OFICIAL PARA PDF (ASPECTO FOLHA A4) -->
+                <div id="area-relatorio-pdf" class="relative">
+                    
+                    <div class="hide-on-pdf absolute -left-10 top-10 bottom-10 w-4 border-r-2 border-dashed border-slate-300"></div>
+
+                    <!-- Cabeçalho -->
+                    <div class="flex justify-between items-start mb-10 border-b-2 border-black pb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-300">
+                                <i class="fa-solid fa-leaf text-3xl text-slate-400"></i>
+                            </div>
+                            <div>
+                                <h1 class="font-black text-xl tracking-wide uppercase font-sans">Agropecuária Cananova</h1>
+                                <p class="text-xs font-sans text-slate-600 tracking-widest uppercase">Gestão Ambiental</p>
+                            </div>
+                        </div>
+                        <div class="text-right text-sm" contenteditable="true">
+                            Mirassol D’Oeste, <span id="doc-data-cabecalho" class="font-bold">24 de abril de 2026</span>
+                        </div>
+                    </div>
+
+                    <!-- Introdução -->
+                    <div contenteditable="true" class="mb-8 text-justify">
+                        <p class="mb-6">
+                            À<br>
+                            <strong>Secretaria de Desenvolvimento Sustentável – Mirassol D’Oeste/MT</strong><br>
+                            Atendimento ao Termo de Compromisso de Ajustamento de Conduta Ambiental nº 000850-041/2023.
+                        </p>
+                        <p class="mb-6 indent-8">
+                            A empresa <strong>AGROPECUÁRIA CANANOVA LTDA.</strong>, pessoa jurídica de direito privado, inscrita no CNPJ nº 30.026.903/0001-02, neste ato representada pela responsável técnica ambiental Larissa dos Santos Silva, vem respeitosamente encaminhar o relatório de monitoramento semanal das armadilhas instaladas para verificar o nível de infestação da <em>Stomoxys Calcitrans</em> (mosca-do-estabulo).
+                        </p>
+                        <p class="mb-6">
+                            Atenciosamente,
+                        </p>
+                    </div>
+
+                    <!-- 1. Dados do Empreendimento -->
+                    <div class="avoid-break mb-8">
+                        <div class="titulo-secao-oficial">1. Dados do Empreendimento</div>
+                        <table class="tabela-oficial">
+                            <tr><td width="30%" class="font-bold bg-slate-50">Nome</td><td>AGROPECUÁRIA CANANOVA LTDA</td></tr>
+                            <tr><td class="font-bold bg-slate-50">CNPJ</td><td>30.026.903/0001-02</td></tr>
+                            <tr><td class="font-bold bg-slate-50">Telefone</td><td contenteditable="true">(65) 3241-7800</td></tr>
+                            <tr><td class="font-bold bg-slate-50">Endereço</td><td contenteditable="true">ROD MT 250,KM 29 - S/N, ANEXO 1, VILA GUARANI</td></tr>
+                            <tr><td class="font-bold bg-slate-50">Município/UF</td><td>Mirassol D’Oeste/MT</td></tr>
+                            <tr><td class="font-bold bg-slate-50">CEP</td><td>78280-000</td></tr>
+                            <tr><td class="font-bold bg-slate-50">Coordenadas Geográficas</td><td>15°42'48.37"S / 58° 7'46.57"O</td></tr>
+                            <tr><td class="font-bold bg-slate-50">Atividade Econômica</td><td>Cultivo de cana-de-açúcar, Cultivo de milho, Cultivo de soja, Cultivo de seringueira, Criação de bovinos para corte, Criação de ovinos, inclusive.</td></tr>
+                        </table>
+                    </div>
+
+                    <!-- 2. Objetivo e Metodologia -->
+                    <div class="avoid-break mb-8" contenteditable="true">
+                        <div class="titulo-secao-oficial">2. Objetivo e Metodologia</div>
+                        <p class="text-justify mb-3 indent-8">
+                            O presente relatório tem como objetivo o monitoramento da <em>Stomoxys Calcitrans</em> (mosca-do estabulo) para atendimento ao Termo de Ajustamento de Conduta SIMP nº 000850-041/2023, com intuito de evitar possível proliferação.
+                        </p>
+                        <p class="text-justify indent-8">
+                            Para efetividade no monitoramento seguiu-se as orientações do Dr. Samir Oliveira Kassab, Consultor na área de Entomologia Agrícola. As armadilhas foram instaladas em locais estratégicos, em áreas de divisa com áreas de pastagem que possuem mais propensão de infestação de mosca, com o objetivo de acompanhar o crescimento populacional.
+                        </p>
+                    </div>
+
+                    <!-- 3. Identificação e Avaliação -->
+                    <div class="avoid-break mb-8">
+                        <div class="titulo-secao-oficial">3. Identificação e Avaliação Populacional</div>
+                        <p class="mb-3 text-sm italic">Período de Análise: <strong id="periodo-texto-pdf"></strong></p>
+                        
+                        <!-- Tabela 01 -->
+                        <table class="tabela-oficial">
+                            <thead>
+                                <tr>
+                                    <th width="30%">Pontos-Chave</th>
+                                    <th width="35%">Coordenadas Geográficas</th>
+                                    <th width="15%">Quantidade</th>
+                                    <th width="20%">Nível de Risco</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-relatorio-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tabela 02 (Legenda) -->
+                    <div class="avoid-break mb-10 w-4/5 mx-auto">
+                        <div class="text-center font-bold mb-1 text-[9pt] uppercase font-sans">Tabela de Parâmetro de Risco</div>
+                        <table class="tabela-oficial text-center border-2 border-black">
+                            <tr><td width="33%" class="font-bold text-lg border-r border-black">&le; 350</td><td width="33%" class="font-bold border-r border-black text-slate-600">LIVRE</td><td class="bg-[#22c55e] text-white font-bold tracking-wider">BAIXO</td></tr>
+                            <tr><td class="font-bold text-lg border-r border-black">351 Á 650</td><td class="font-bold border-r border-black text-slate-600">ALERTA</td><td class="bg-[#eab308] text-white font-bold tracking-wider">MÉDIO</td></tr>
+                            <tr><td class="font-bold text-lg border-r border-black">&ge; 700</td><td class="font-bold border-r border-black text-slate-600">RISCO</td><td class="bg-[#dc2626] text-white font-bold tracking-wider">ALTO</td></tr>
+                        </table>
+                    </div>
+
+                    <!-- 4. Gráficos -->
+                    <div class="avoid-break mb-10 page-break-before">
+                        <div class="titulo-secao-oficial">4. Índice Populacional (Análise Gráfica)</div>
+                        <div class="border border-slate-300 p-3 bg-white mt-2">
+                            <div class="text-center font-bold mb-2 text-sm font-sans">Volume Acumulado por Ponto Estratégico</div>
+                            <div class="chart-container">
+                                <canvas id="graficoBarras"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Conclusão -->
+                    <div class="avoid-break mb-16">
+                        <div class="titulo-secao-oficial">5. Conclusão</div>
+                        <div contenteditable="true" class="text-justify p-2 -mx-2 rounded hover:bg-slate-50">
+                            Conforme os dados apresentados acima, conclui-se que em nenhum dos pontos monitorados foi identificado alerta ou risco de surto.
+                        </div>
+                    </div>
+
+                    <!-- Assinatura -->
+                    <div class="avoid-break mt-24 text-center">
+                        <div class="w-72 border-t border-black mx-auto mb-2 pt-3">
+                            <p class="font-bold text-base uppercase">Larissa dos Santos Silva</p>
+                            <p class="text-sm font-bold text-slate-600">Engenheira Ambiental e Sanitária</p>
+                            <p class="text-xs text-slate-500 mt-1">Responsável Técnica</p>
+                        </div>
+                    </div>
+
+                    <!-- Anexos Fotográficos -->
+                    <div id="secao-anexos-pdf" class="page-break-before hidden">
+                        <div class="titulo-secao-oficial text-center text-lg py-3 mt-10">Relatório Fotográfico das Armadilhas</div>
+                        <p class="text-center text-xs mb-6 text-slate-500 font-sans">Evidências recolhidas no local referentes ao período filtrado.</p>
+                        
+                        <div id="grid-anexos-pdf" class="grid grid-cols-2 gap-x-6 gap-y-10">
+                            <!-- Injetado via JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 flex flex-col gap-3 z-[100] pointer-events-none"></div>
+
+    <!-- LÓGICA CORE + FIREBASE CLOUD DATABASE -->
+    <script type="module">
+        // Importações da Cloud Database (Firebase)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuração segura do Firebase (Injetada automaticamente no ambiente ou usando fallback genérico)
+        let firebaseConfig = { projectId: "demo-lmc-controle" }; // Fallback
+        if (typeof __firebase_config !== 'undefined') {
+            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) {}
+        }
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'lmc-controle-prod';
+
+        // Inicialização Serviços Cloud
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Estado Global
+        let currentUser = null;
+        let dadosMonitoramento = [];
+        let unsubscribeSnapshot = null;
+
+        let imagemBase64Atual = null;
+        let chartBarras = null; 
+        let dashChartLinhas = null;
+        let dashDataIn = '';
+        let dashDataOut = '';
+        let dashChartClima = null;
+        let climaDataIn = '';
+        let climaDataOut = '';
+        let filtroDataIn = '';
+        let filtroDataOut = '';
+
+        // Mapeamento e Coordenadas Oficiais
+        const mapArmadilhas = {
+            1: { nome: "Arm. 1 (faz. São Paulo)", coord: "S15° 43' 29,13\" / W58° 8' 30,282\"" },
+            2: { nome: "Arm. 2 (faz. São Paulo)", coord: "S15° 44' 25,194\" / W58° 9' 2,886\"" },
+            3: { nome: "Arm. 3 (faz. Santa Rita)", coord: "S15° 45' 0,816\" / W58° 9' 21,582\"" },
+            4: { nome: "Arm. 4 (faz. Santa Rita)", coord: "S15° 45' 24,54\" / W58° 9' 59,526\"" },
+            5: { nome: "Arm. 5 (faz. Santa Rita)", coord: "S15° 46' 48,45\" / W58° 11' 26,178\"" },
+            6: { nome: "Arm. 6 (faz. Santa Rita) divisa", coord: "S15° 46' 18,924\" / W58° 10' 36,162\"" },
+            7: { nome: "Arm. 7 (faz. Morro Agudo)", coord: "S15° 48' 50,094\" / W58° 9' 6,198\"" },
+            8: { nome: "Arm. 8 (faz. Colina/Boa Esperança)", coord: "S15° 49' 21,21\" / W58° 9' 56,016\"" },
+            9: { nome: "Arm. 9 (Compostagem)", coord: "S15° 43' 26,796\" / W58° 7' 39,558\"" }
+        };
+
+        // EXPORTANDO FUNÇÕES PARA O HTML (Como estamos em um ES Module, precisamos ligar ao Window)
+        window.switchTab = switchTab;
+        window.fecharModalImagem = fecharModalImagem;
+        window.abrirModalImagem = abrirModalImagem;
+        window.processarImagemClick = processarImagemClick;
+        window.removerFotoPreview = removerFotoPreview;
+        window.salvarFormulario = salvarFormulario;
+        window.cancelarEdicao = cancelarEdicao;
+        window.editarRegistro = editarRegistro;
+        window.deletarRegistro = deletarRegistro;
+        window.aplicarFiltroDashboard = aplicarFiltroDashboard;
+        window.limparFiltroDashboard = limparFiltroDashboard;
+        window.aplicarFiltroClima = aplicarFiltroClima;
+        window.limparFiltroClima = limparFiltroClima;
+        window.exportarGraficoPDF = exportarGraficoPDF;
+        window.renderizarHistorico = renderizarHistorico;
+        window.aplicarFiltroRelatorio = aplicarFiltroRelatorio;
+        window.limparFiltroRelatorio = limparFiltroRelatorio;
+        window.exportarDados = exportarDados;
+        window.exportarBackup = exportarBackup;
+        window.importarBackup = importarBackup;
+        window.exportarPDF = exportarPDF;
+
+        // INICIALIZAÇÃO E AUTENTICAÇÃO CLOUD
+        document.addEventListener('DOMContentLoaded', () => {
+            const hoje = new Date();
+            const strHoje = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+            
+            const inputDataObj = document.getElementById('inputData');
+            inputDataObj.max = strHoje;
+            inputDataObj.value = strHoje;
+            
+            const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+            document.getElementById('doc-data-cabecalho').innerText = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
+            
+            Chart.defaults.font.family = "'Arial', sans-serif";
+            Chart.defaults.color = '#475569';
+
+            configurarDragAndDrop();
+
+            // Iniciar Autenticação Silenciosa para DB
+            initAuth();
+        });
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Erro de Autenticação", error);
+                document.getElementById('status-db-text').innerText = "Erro ao ligar ao DB";
+                document.getElementById('status-db-indicator').classList.replace('bg-amber-500', 'bg-rose-500');
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('status-db-text').innerText = "Banco de Dados Ativo";
+                document.getElementById('status-db-indicator').classList.replace('bg-amber-500', 'bg-emerald-500');
+                setupRealtimeListener();
+            } else {
+                if (unsubscribeSnapshot) unsubscribeSnapshot();
+            }
+        });
+
+        // OUVINTE EM TEMPO REAL DO BANCO DE DADOS (FIRESTORE)
+        function setupRealtimeListener() {
+            if (!currentUser) return;
+
+            // Referência à coleção de Dados Públicos do App (Disponível para a empresa toda)
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'monitoramentos');
+            
+            unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
+                // Atualiza o Array local em tempo real sempre que alguém altera o banco
+                dadosMonitoramento = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Atualizar todas as interfaces (Dashboard, Historico, etc)
+                atualizarDashboard();
+                if (document.getElementById('tab-historico').classList.contains('active')) renderizarHistorico();
+                if (document.getElementById('tab-relatorios').classList.contains('active')) renderizarGraficos();
+
+            }, (error) => {
+                console.error("Erro no Firestore:", error);
+                showToast("Erro na sincronização de dados.", "error");
+            });
+        }
+
+        // ================= FUNÇÕES DE CRUD (CLOUD DB) =================
+
+        async function salvarFormulario(e) {
+            e.preventDefault();
+
+            // Validar campos obrigatórios
+            if(!document.getElementById('inputData').value || !document.getElementById('inputArmadilha').value || !document.getElementById('inputQuantidade').value) {
+                return showToast("Preencha todos os campos obrigatórios (*)", "error");
+            }
+
+            if (!currentUser) return showToast("Aguarde a conexão com o Banco de Dados.", "error");
+            
+            // UI Update - mostrar loading
+            const btnSubmit = document.getElementById('btn-submit-form');
+            const originalBtnHtml = btnSubmit.innerHTML;
+            btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>A Salvar na Nuvem...</span>`;
+            btnSubmit.disabled = true;
+
+            const temp = document.getElementById('inputTemperatura').value;
+            const hum = document.getElementById('inputHumidade').value;
+
+            const registo = {
+                data: document.getElementById('inputData').value,
+                armadilha: parseInt(document.getElementById('inputArmadilha').value),
+                quantidade: parseInt(document.getElementById('inputQuantidade').value),
+                temperatura: temp ? parseFloat(temp) : null,
+                humidade: hum ? parseInt(hum) : null,
+                clima: document.getElementById('inputClima').value || 'Ensolarado',
+                condicao: document.getElementById('inputCondicao').value || 'Boa',
+                acao: document.getElementById('inputAcao').value || 'Nenhuma',
+                foto: imagemBase64Atual,
+                anotacoes: document.getElementById('inputAnotacoes').value
+            };
+
+            const editId = document.getElementById('editId').value;
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'monitoramentos');
+
+            try {
+                if (editId) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'monitoramentos', editId);
+                    await updateDoc(docRef, registo);
+                    showToast('Monitorização atualizada com sucesso no Cloud DB!');
+                } else {
+                    await addDoc(colRef, registo);
+                    showToast('Monitorização criada e sincronizada com sucesso!');
+                }
+                cancelarEdicao(); 
+                switchTab('dashboard');
+            } catch (err) {
+                console.error(err);
+                showToast('Erro ao gravar no Banco de Dados.', 'error');
+            } finally {
+                btnSubmit.innerHTML = originalBtnHtml;
+                btnSubmit.disabled = false;
+            }
+        }
+
+        async function deletarRegistro(id) {
+            if (!currentUser) return;
+            if(confirm("Confirma a exclusão permanente deste registo do Servidor Cloud?")) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'monitoramentos', id);
+                    await deleteDoc(docRef);
+                    showToast('Registo excluído do Servidor.');
+                } catch(err) {
+                    showToast('Falha ao excluir.', 'error');
+                }
+            }
+        }
+
+        async function importarBackup(event) {
+            if (!currentUser) return showToast("Sem ligação ao banco.", "error");
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                try {
+                    const dados = JSON.parse(e.target.result);
+                    if (Array.isArray(dados)) {
+                        if (confirm(`Atenção: Vai importar ${dados.length} registos para o Servidor Cloud. Continuar?`)) {
+                            showToast("A importar para o Cloud DB... Isto pode demorar.", "success");
+                            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'monitoramentos');
+                            
+                            // Adiciona um a um
+                            for(let r of dados) {
+                                let novoRegisto = {...r};
+                                delete novoRegisto.id; // Remover ID antigo para criar novo
+                                await addDoc(colRef, novoRegisto);
+                            }
+                            showToast("Importação concluída com sucesso!");
+                        }
+                    } else showToast('O ficheiro JSON não é compatível.', 'error');
+                } catch (error) { showToast('Falha na leitura do ficheiro.', 'error'); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // ================= INTERFACE E AUXILIARES =================
+
+        function analisarRisco(quantidade) {
+            if (quantidade <= 350) return { texto: 'BAIXO', status: 'Livre', corBg: 'bg-[#22c55e]', corText: 'text-white', corPura: '#22c55e' };
+            if (quantidade < 700) return { texto: 'MÉDIO', status: 'Alerta', corBg: 'bg-[#eab308]', corText: 'text-white', corPura: '#eab308' };
+            return { texto: 'ALTO', status: 'Risco', corBg: 'bg-[#dc2626]', corText: 'text-white', corPura: '#dc2626' };
+        }
+
+        function formatarDataPT(dataStr) {
+            if(!dataStr) return '';
+            const partes = dataStr.split('-');
+            if(partes.length !== 3) return dataStr;
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+
+        function configurarDragAndDrop() {
+            const dropzone = document.getElementById('dropzoneFoto');
+            const inputFoto = document.getElementById('inputFoto');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+            ['dragenter', 'dragover'].forEach(eventName => { dropzone.addEventListener(eventName, () => dropzone.classList.add('dropzone-active'), false); });
+            ['dragleave', 'drop'].forEach(eventName => { dropzone.addEventListener(eventName, () => dropzone.classList.remove('dropzone-active'), false); });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('image/')) {
+                        inputFoto.files = files; 
+                        processarArquivoImagem(file);
+                    } else showToast('Largue apenas ficheiros de imagem.', 'error');
+                }
+            }, false);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('bg-agro-600/10', 'text-agro-400', 'border-agro-500/20');
+                el.classList.add('hover:bg-slate-800', 'text-slate-400', 'border-transparent');
+            });
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            const btn = document.getElementById('btn-' + tabId);
+            btn.classList.add('bg-agro-600/10', 'text-agro-400', 'border-agro-500/20');
+            btn.classList.remove('hover:bg-slate-800', 'text-slate-400', 'border-transparent');
+
+            const titulos = {
+                'dashboard': 'Agropecuária Cananova',
+                'registro': 'Gestão de Registos',
+                'historico': 'Base de Dados',
+                'relatorios': 'Exportação Oficial'
+            };
+            document.getElementById('header-title').innerText = titulos[tabId];
+
+            if (tabId === 'relatorios') renderizarGraficos();
+            else if (tabId === 'historico') renderizarHistorico();
+            else if (tabId === 'dashboard') atualizarDashboard();
+        }
+
+        function abrirModalImagem(src) {
+            const modal = document.getElementById('imageModal');
+            document.getElementById('modalImageSrc').src = src;
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+        
+        function fecharModalImagem() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function processarImagemClick(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            processarArquivoImagem(file);
+        }
+
+        function processarArquivoImagem(file) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 800; // Otimização severa antes de enviar para DB
+                    let width = img.width; let height = img.height;
+
+                    if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+                    else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+
+                    canvas.width = width; canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    imagemBase64Atual = canvas.toDataURL('image/jpeg', 0.6); 
+                    
+                    const preview = document.getElementById('previewFoto');
+                    preview.src = imagemBase64Atual;
+                    preview.classList.remove('hidden');
+                    document.getElementById('btn-remover-foto-container').classList.remove('hidden');
+                }
+            }
+        }
+        
+        function removerFotoPreview() {
+            imagemBase64Atual = null;
+            document.getElementById('previewFoto').classList.add('hidden');
+            document.getElementById('inputFoto').value = '';
+            document.getElementById('btn-remover-foto-container').classList.add('hidden');
+        }
+
+        function editarRegistro(id) {
+            const r = dadosMonitoramento.find(x => x.id === id);
+            if (!r) return;
+            document.getElementById('editId').value = r.id;
+            document.getElementById('inputData').value = r.data;
+            document.getElementById('inputArmadilha').value = r.armadilha;
+            document.getElementById('inputQuantidade').value = r.quantidade;
+            document.getElementById('inputAnotacoes').value = r.anotacoes || '';
+            document.getElementById('inputTemperatura').value = r.temperatura || '';
+            document.getElementById('inputHumidade').value = r.humidade || '';
+            document.getElementById('inputClima').value = r.clima || 'Ensolarado';
+            document.getElementById('inputCondicao').value = r.condicao || 'Boa';
+            document.getElementById('inputAcao').value = r.acao || 'Nenhuma';
+            
+            if (r.foto) {
+                imagemBase64Atual = r.foto;
+                document.getElementById('previewFoto').src = r.foto;
+                document.getElementById('previewFoto').classList.remove('hidden');
+                document.getElementById('btn-remover-foto-container').classList.remove('hidden');
+            } else removerFotoPreview();
+
+            document.getElementById('titulo-form').innerText = "Editar Monitorização";
+            document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
+            switchTab('registro');
+            window.scrollTo(0,0);
+        }
+
+        function cancelarEdicao() {
+            document.getElementById('registroForm').reset();
+            document.getElementById('editId').value = "";
+            document.getElementById('inputCondicao').value = "Boa";
+            document.getElementById('inputClima').value = "Ensolarado";
+            document.getElementById('inputAcao').value = "Nenhuma";
+            removerFotoPreview();
+            const hoje = new Date();
+            document.getElementById('inputData').value = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+            document.getElementById('titulo-form').innerText = "Inserir Monitorização";
+            document.getElementById('btn-cancelar-edicao').classList.add('hidden');
+        }
+
+        // SISTEMAS DE FILTRO DO DASHBOARD
+        function aplicarFiltroDashboard() {
+            dashDataIn = document.getElementById('dashFiltroInicio').value;
+            dashDataOut = document.getElementById('dashFiltroFim').value;
+            atualizarDashboard();
+            showToast('Filtro aplicado à Evolução Populacional.');
+        }
+
+        function limparFiltroDashboard() {
+            document.getElementById('dashFiltroInicio').value = '';
+            document.getElementById('dashFiltroFim').value = '';
+            dashDataIn = ''; dashDataOut = '';
+            atualizarDashboard();
+            showToast('Filtro de Evolução removido.');
+        }
+
+        function aplicarFiltroClima() {
+            climaDataIn = document.getElementById('climaFiltroInicio').value;
+            climaDataOut = document.getElementById('climaFiltroFim').value;
+            atualizarDashboard();
+            showToast('Filtro aplicado à Análise de Clima.');
+        }
+
+        function limparFiltroClima() {
+            document.getElementById('climaFiltroInicio').value = '';
+            document.getElementById('climaFiltroFim').value = '';
+            climaDataIn = ''; climaDataOut = '';
+            atualizarDashboard();
+            showToast('Filtro de Clima removido.');
+        }
+
+        // EXPORTAR GRÁFICOS E PDF
+        function exportarGraficoPDF(elementId, filename) {
+            const el = document.getElementById(elementId);
+            showToast('A preparar o documento PDF...', 'success');
+
+            const opt = {
+                margin:       [15, 15, 15, 15],
+                filename:     `Analise_${filename}_${new Date().toISOString().split('T')[0]}.pdf`,
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            setTimeout(() => {
+                html2pdf().set(opt).from(el).save().then(() => showToast('Análise Gráfica exportada com sucesso!'));
+            }, 300);
+        }
+
+        // RENDER DASHBOARD INTELIGENTE
+        function atualizarDashboard() {
+            let total = 0; let trapCounts = {}; let maxMoscasTotal = 0;
+            dadosMonitoramento.forEach(r => { 
+                total += r.quantidade; 
+                trapCounts[r.armadilha] = (trapCounts[r.armadilha]||0) + r.quantidade; 
+            });
+            
+            document.getElementById('dash-total').innerText = total.toLocaleString();
+            document.getElementById('dash-registros').innerText = dadosMonitoramento.length;
+            
+            if (dadosMonitoramento.length > 0) {
+                let critId = Object.keys(trapCounts).reduce((a, b) => trapCounts[a] > trapCounts[b] ? a : b);
+                maxMoscasTotal = trapCounts[critId]; 
+                
+                let infoArm = mapArmadilhas[critId].nome.replace(' (', '<br><span class="text-sm font-medium text-slate-500">').replace(')','</span>');
+                document.getElementById('dash-critica').innerHTML = infoArm;
+                document.getElementById('dash-critica-qtd').innerText = maxMoscasTotal.toLocaleString() + ' moscas totais';
+                document.getElementById('dash-media').innerText = Math.round(total / dadosMonitoramento.length).toLocaleString();
+            } else {
+                document.getElementById('dash-critica').innerText = '-';
+                document.getElementById('dash-critica-qtd').innerText = '';
+                document.getElementById('dash-media').innerText = '0';
+            }
+
+            // --- 1. RENDERIZAÇÃO GRÁFICO EVOLUÇÃO ---
+            let dadosGraficoDash = [...dadosMonitoramento];
+            if (dashDataIn) dadosGraficoDash = dadosGraficoDash.filter(d => d.data >= dashDataIn);
+            if (dashDataOut) dadosGraficoDash = dadosGraficoDash.filter(d => d.data <= dashDataOut);
+
+            const diasSetDash = new Set(dadosGraficoDash.map(d => d.data));
+            const datasOrdenadasDash = Array.from(diasSetDash).sort((a,b) => a.localeCompare(b)); 
+
+            const mediasPorDiaDash = [];
+            const totaisPorDiaDash = [];
+
+            datasOrdenadasDash.forEach(data => {
+                const regsDia = dadosGraficoDash.filter(d => d.data === data);
+                const soma = regsDia.reduce((acc, r) => acc + r.quantidade, 0);
+                mediasPorDiaDash.push(Math.round(soma / regsDia.length));
+                totaisPorDiaDash.push(soma);
+            });
+
+            let statEvoMedia = mediasPorDiaDash.length > 0 ? Math.round(mediasPorDiaDash.reduce((a,b)=>a+b,0) / mediasPorDiaDash.length) : 0;
+            let statEvoPico = totaisPorDiaDash.length > 0 ? Math.max(...totaisPorDiaDash) : 0;
+            document.getElementById('stat-evo-media').innerText = statEvoMedia.toLocaleString();
+            document.getElementById('stat-evo-pico').innerText = statEvoPico.toLocaleString();
+
+            if (dashChartLinhas) dashChartLinhas.destroy();
+            const ctxDash = document.getElementById('dashGraficoLinhas').getContext('2d');
+            
+            if (datasOrdenadasDash.length === 0) {
+                dashChartLinhas = new Chart(ctxDash, {
+                    type: 'line', data: { labels: ['Sem dados'], datasets: [{ label: 'Vazio', data: [0] }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } else {
+                dashChartLinhas = new Chart(ctxDash, {
+                    type: 'line',
+                    data: {
+                        labels: datasOrdenadasDash.map(d => formatarDataPT(d).substring(0,5)), 
+                        datasets: [{
+                            label: 'Índice Médio no Dia', data: mediasPorDiaDash,
+                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2, tension: 0.3, fill: true,
+                            pointBackgroundColor: '#059669', pointRadius: 4
+                        }]
+                    },
+                    options: { 
+                        animation: false, responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                    }
+                });
+            }
+
+            // --- 2. RENDERIZAÇÃO GRÁFICO CLIMA ---
+            let dadosGraficoClima = [...dadosMonitoramento];
+            if (climaDataIn) dadosGraficoClima = dadosGraficoClima.filter(d => d.data >= climaDataIn);
+            if (climaDataOut) dadosGraficoClima = dadosGraficoClima.filter(d => d.data <= climaDataOut);
+
+            const diasSetClima = new Set(dadosGraficoClima.map(d => d.data));
+            const datasOrdenadasClima = Array.from(diasSetClima).sort((a,b) => a.localeCompare(b));
+
+            const tempPorDiaClima = []; const humPorDiaClima = []; const totaisPorDiaClima = [];
+            let totalTemp = 0, countTemp = 0, totalHum = 0, countHum = 0;
+
+            datasOrdenadasClima.forEach(data => {
+                const regsDia = dadosGraficoClima.filter(d => d.data === data);
+                const soma = regsDia.reduce((acc, r) => acc + r.quantidade, 0);
+                totaisPorDiaClima.push(soma);
+
+                const regsComTemp = regsDia.filter(r => r.temperatura !== null && r.temperatura !== "");
+                if (regsComTemp.length > 0) {
+                    const avgTemp = regsComTemp.reduce((acc, r) => acc + parseFloat(r.temperatura), 0) / regsComTemp.length;
+                    tempPorDiaClima.push(avgTemp.toFixed(1));
+                    totalTemp += avgTemp; countTemp++;
+                } else tempPorDiaClima.push(null);
+
+                const regsComHum = regsDia.filter(r => r.humidade !== null && r.humidade !== "");
+                if (regsComHum.length > 0) {
+                    const avgHum = regsComHum.reduce((acc, r) => acc + parseFloat(r.humidade), 0) / regsComHum.length;
+                    humPorDiaClima.push(avgHum.toFixed(1));
+                    totalHum += avgHum; countHum++;
+                } else humPorDiaClima.push(null);
+            });
+
+            document.getElementById('stat-cli-temp').innerText = countTemp > 0 ? (totalTemp/countTemp).toFixed(1) + '°C' : 'N/D';
+            document.getElementById('stat-cli-hum').innerText = countHum > 0 ? Math.round(totalHum/countHum) + '%' : 'N/D';
+
+            if (dashChartClima) dashChartClima.destroy();
+            const ctxClima = document.getElementById('dashGraficoClima').getContext('2d');
+            
+            if (datasOrdenadasClima.length === 0) {
+                dashChartClima = new Chart(ctxClima, {
+                    type: 'bar', data: { labels: ['Sem dados'], datasets: [{ label: 'Vazio', data: [0] }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } else {
+                dashChartClima = new Chart(ctxClima, {
+                    type: 'bar',
+                    data: {
+                        labels: datasOrdenadasClima.map(d => formatarDataPT(d).substring(0,5)),
+                        datasets: [
+                            {
+                                type: 'line', label: 'Temperatura Média (°C)', data: tempPorDiaClima,
+                                borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderWidth: 3, pointBackgroundColor: '#ffffff', pointBorderColor: '#ef4444',
+                                pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7, yAxisID: 'yTemp', tension: 0.4, fill: true, spanGaps: true
+                            },
+                            {
+                                type: 'line', label: 'Humidade Média (%)', data: humPorDiaClima,
+                                borderColor: '#0ea5e9', borderWidth: 2, borderDash: [5, 5],
+                                pointBackgroundColor: '#ffffff', pointBorderColor: '#0ea5e9', pointRadius: 3, yAxisID: 'yHum', tension: 0.4, spanGaps: true
+                            },
+                            {
+                                type: 'bar', label: 'Moscas Coletadas', data: totaisPorDiaClima,
+                                backgroundColor: 'rgba(59, 130, 246, 0.85)', hoverBackgroundColor: '#2563eb',
+                                borderRadius: {topLeft: 6, topRight: 6}, barThickness: 'flex', maxBarThickness: 45, yAxisID: 'yMoscas'
+                            }
+                        ]
+                    },
+                    options: {
+                        animation: { duration: 1000, easing: 'easeOutQuart' },
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 12, weight: 'bold' }, padding: 20 } },
+                            tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 12, cornerRadius: 8, displayColors: true }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { font: { weight: '500' } } },
+                            yMoscas: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Volume de Moscas', font: { size: 11, weight: 'bold' } }, grid: { color: '#e2e8f0', borderDash: [5, 5] }, beginAtZero: true },
+                            yTemp: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Graus (°C)', font: { size: 11, weight: 'bold' } }, grid: { display: false }, min: 10, max: 45 },
+                            yHum: { type: 'linear', display: false, min: 0, max: 100 }
+                        }
+                    }
+                });
+            }
+
+            // --- MAPA DE CALOR ---
+            let picosAtuaisRiscoAlto = 0; let picosAtuaisRiscoMedio = 0;
+            const heatMap = document.getElementById('heatmap-container');
+            if(heatMap) heatMap.innerHTML = '';
+            
+            for (let i = 1; i <= 9; i++) {
+                const regs = dadosMonitoramento.filter(r => r.armadilha === i).sort((a,b) => b.data.localeCompare(a.data));
+                const ultimo = regs.length > 0 ? regs[0] : null; 
+                
+                let boxClass = 'bg-slate-50 border-slate-200 text-slate-400';
+                let shadowClass = ''; let qtdText = 'Sem dados'; 
+                let statusIcon = '<span class="text-[10px] font-bold px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-400 uppercase">Indisponível</span>';
+
+                if (ultimo) {
+                    const risco = analisarRisco(ultimo.quantidade);
+                    if (ultimo.quantidade >= 700) picosAtuaisRiscoAlto++;
+                    else if (ultimo.quantidade >= 351) picosAtuaisRiscoMedio++;
+                    
+                    boxClass = `bg-white border-slate-100 ${risco.corPura === '#22c55e'?'text-emerald-700':(risco.corPura === '#eab308'?'text-amber-700':'text-rose-700')}`;
+                    shadowClass = 'shadow-soft';
+                    qtdText = ultimo.quantidade.toLocaleString() + ' moscas';
+                    let pinColor = risco.corPura === '#22c55e' ? 'bg-emerald-500' : (risco.corPura === '#eab308' ? 'bg-amber-400' : 'bg-rose-500');
+                    statusIcon = `<span class="inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-600 uppercase"><div class="w-2 h-2 rounded-full ${pinColor}"></div> ${risco.texto}</span>`;
+                }
+
+                let nomeCurto = mapArmadilhas[i].nome.split(' (')[0];
+                let descCurta = mapArmadilhas[i].nome.split(' (')[1]?.replace(')','') || '';
+
+                if(heatMap) heatMap.innerHTML += `
+                    <div class="p-5 rounded-2xl flex flex-col justify-between border ${boxClass} ${shadowClass} relative overflow-hidden group hover:border-slate-300 transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <div><h4 class="font-extrabold text-slate-800">${nomeCurto}</h4><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${descCurta}</p></div>
+                            ${statusIcon}
+                        </div>
+                        <div>
+                            <span class="text-3xl font-black tracking-tight">${qtdText}</span>
+                            <div class="text-[10px] mt-2 text-slate-400 font-semibold flex items-center gap-1"><i class="fa-regular fa-clock"></i> ${ultimo ? 'Registado a: ' + formatarDataPT(ultimo.data) : 'A aguardar recolha'}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const listaRec = document.getElementById('lista-recomendacoes');
+            if (listaRec) {
+                listaRec.innerHTML = '';
+                if (picosAtuaisRiscoAlto > 0) {
+                    listaRec.innerHTML += `<li class="flex items-start gap-4 p-4 bg-rose-50 rounded-2xl border border-rose-100 text-sm text-rose-800 shadow-sm"><div class="bg-white p-2 rounded-lg shadow-sm text-rose-600"><i class="fa-solid fa-skull-crossbones text-xl"></i></div> <div><strong class="block text-rose-900 mb-1 text-base">ALERTA VERMELHO: Risco Alto (≥ 700)</strong> Detetado foco grave de infestação. Acione imediatamente a equipa de contenção. Reveja pilhas de compostagem, aplique controlo químico se autorizado e garanta limpeza absoluta dos currais nas áreas afetadas.</div></li>`;
+                } else if (picosAtuaisRiscoMedio > 0) {
+                    listaRec.innerHTML += `<li class="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 text-sm text-amber-800 shadow-sm"><div class="bg-white p-2 rounded-lg shadow-sm text-amber-500"><i class="fa-solid fa-triangle-exclamation text-xl"></i></div> <div><strong class="block text-amber-900 mb-1 text-base">AVISO: Risco Médio (351 a 699)</strong> População em curva ascendente. Antecipe a remoção de feno e palha molhada. Verifique a drenagem de chorume nos anexos para evitar que o ambiente atinja o nível crítico de reprodução.</div></li>`;
+                } else if (dadosMonitoramento.length > 0) {
+                    listaRec.innerHTML += `<li class="flex items-start gap-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-sm text-emerald-800 shadow-sm"><div class="bg-white p-2 rounded-lg shadow-sm text-emerald-500"><i class="fa-regular fa-face-smile text-xl"></i></div> <div><strong class="block text-emerald-900 mb-1 text-base">SITUAÇÃO LIVRE: Risco Baixo (≤ 350)</strong> População perfeitamente controlada. A eficácia do plano atual está comprovada. Mantenha o cronograma padrão de saneamento e monitorização ambiental preventiva.</div></li>`;
+                } else {
+                    listaRec.innerHTML += `<li class="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl text-center">A aguardar sincronização Cloud.</li>`;
+                }
+            }
+        }
+
+        // HISTÓRICO COM ORDENAÇÃO
+        function renderizarHistorico() {
+            const container = document.getElementById('historicoContainer');
+            const filtro = document.getElementById('filtroArmadilha').value;
+            const ordem = document.getElementById('ordemHistorico').value;
+            container.innerHTML = '';
+
+            let dados = dadosMonitoramento.filter(r => filtro === 'todas' || r.armadilha == filtro);
+
+            if (ordem === 'recente') dados.sort((a,b) => b.data.localeCompare(a.data));
+            if (ordem === 'antigo') dados.sort((a,b) => a.data.localeCompare(b.data));
+            if (ordem === 'maior') dados.sort((a,b) => b.quantidade - a.quantidade);
+            if (ordem === 'menor') dados.sort((a,b) => a.quantidade - b.quantidade);
+
+            if(dados.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-300"><i class="fa-regular fa-folder-open text-4xl mb-3"></i><p>Nenhum registo encontrado na base de dados.</p></div>`;
+                return;
+            }
+
+            dados.forEach(r => {
+                const risco = analisarRisco(r.quantidade);
+                let badgesExtra = '';
+                if (r.temperatura || r.humidade || r.clima || (r.condicao && r.condicao !== 'Boa') || (r.acao && r.acao !== 'Nenhuma')) {
+                    badgesExtra = '<div class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">';
+                    if (r.acao && r.acao !== 'Nenhuma') {
+                        let corAcao = r.acao === 'Limpeza Física' ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50';
+                        badgesExtra += `<span class="text-[10px] font-bold ${corAcao} px-2 py-1 rounded-md border border-slate-200 uppercase"><i class="fa-solid fa-shield-halved mr-1"></i> Ação: ${r.acao}</span>`;
+                    }
+                    if (r.temperatura) badgesExtra += `<span class="text-[10px] font-bold bg-slate-50 text-slate-600 px-2 py-1 rounded-md border border-slate-200"><i class="fa-solid fa-temperature-half text-orange-500 mr-1"></i> ${r.temperatura}°C</span>`;
+                    if (r.humidade) badgesExtra += `<span class="text-[10px] font-bold bg-slate-50 text-slate-600 px-2 py-1 rounded-md border border-slate-200"><i class="fa-solid fa-droplet text-blue-500 mr-1"></i> ${r.humidade}%</span>`;
+                    if (r.clima) {
+                        let ic = r.clima === 'Ensolarado' ? 'sun text-amber-500' : (r.clima === 'Chuvoso' ? 'cloud-rain text-blue-400' : 'cloud text-slate-400');
+                        badgesExtra += `<span class="text-[10px] font-bold bg-slate-50 text-slate-600 px-2 py-1 rounded-md border border-slate-200"><i class="fa-solid fa-${ic} mr-1"></i> ${r.clima}</span>`;
+                    }
+                    if (r.condicao && r.condicao !== 'Boa') {
+                        let cCol = r.condicao === 'Danificada' ? 'text-rose-500' : 'text-amber-500';
+                        badgesExtra += `<span class="text-[10px] font-bold bg-slate-50 text-slate-600 px-2 py-1 rounded-md border border-slate-200"><i class="fa-solid fa-wrench ${cCol} mr-1"></i> ${r.condicao}</span>`;
+                    }
+                    badgesExtra += '</div>';
+                }
+
+                const imgHTML = r.foto 
+                    ? `<div class="h-48 w-full bg-slate-100 cursor-pointer overflow-hidden relative group border-b border-slate-100" onclick="abrirModalImagem('${r.foto}')"><img src="${r.foto}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"><i class="fa-solid fa-magnifying-glass-plus text-white text-3xl"></i></div></div>` 
+                    : `<div class="h-16 w-full bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 flex items-center justify-center"><span class="text-[10px] uppercase font-bold text-slate-400 tracking-widest"><i class="fa-solid fa-camera-slash mr-1"></i> Sem Foto</span></div>`;
+
+                let borderTopColor = risco.corPura === '#22c55e' ? 'border-t-emerald-500' : (risco.corPura === '#eab308' ? 'border-t-amber-400' : 'border-t-rose-500');
+
+                container.innerHTML += `
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-soft border border-slate-100 relative group card-hover border-t-4 ${borderTopColor}">
+                        <div class="absolute top-3 right-3 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editarRegistro('${r.id}')" class="bg-white/95 backdrop-blur w-8 h-8 rounded-lg shadow-md text-slate-600 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="deletarRegistro('${r.id}')" class="bg-white/95 backdrop-blur w-8 h-8 rounded-lg shadow-md text-slate-600 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                        ${imgHTML}
+                        <div class="p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <span class="font-extrabold text-sm text-slate-800 line-clamp-1 pr-2" title="${mapArmadilhas[r.armadilha].nome}">${mapArmadilhas[r.armadilha].nome.split(' (')[0]}</span>
+                                <span class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded uppercase whitespace-nowrap">${formatarDataPT(r.data)}</span>
+                            </div>
+                            <div class="flex items-end gap-3 mb-2">
+                                <span class="text-4xl font-black text-slate-800 tracking-tight">${r.quantidade}</span>
+                                <span class="text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider ${risco.corBg} mb-1 shadow-sm">${risco.texto}</span>
+                            </div>
+                            ${r.anotacoes ? `<p class="text-xs text-slate-500 font-medium bg-slate-50 p-2.5 rounded-lg border border-slate-100 line-clamp-2 mt-4 italic">"${r.anotacoes}"</p>` : ''}
+                            ${badgesExtra}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function aplicarFiltroRelatorio() {
+            filtroDataIn = document.getElementById('filtroDataInicio').value;
+            filtroDataOut = document.getElementById('filtroDataFim').value;
+            renderizarGraficos();
+            showToast('Filtro aplicado ao Relatório Oficial!');
+        }
+
+        function limparFiltroRelatorio() {
+            document.getElementById('filtroDataInicio').value = ''; document.getElementById('filtroDataFim').value = '';
+            filtroDataIn = ''; filtroDataOut = '';
+            renderizarGraficos();
+            showToast('Filtros removidos. Exibindo todo o histórico.');
+        }
+
+        // RENDERIZAR PDF
+        function renderizarGraficos() {
+            let dadosFiltrados = [...dadosMonitoramento];
+
+            if (filtroDataIn) dadosFiltrados = dadosFiltrados.filter(d => d.data >= filtroDataIn);
+            if (filtroDataOut) dadosFiltrados = dadosFiltrados.filter(d => d.data <= filtroDataOut);
+
+            let textoPeriodo = "Período Global Histórico";
+            if (filtroDataIn && filtroDataOut) textoPeriodo = `Avaliação no Período: ${formatarDataPT(filtroDataIn)} a ${formatarDataPT(filtroDataOut)}`;
+            else if (filtroDataIn) textoPeriodo = `Avaliação a partir de ${formatarDataPT(filtroDataIn)}`;
+            else if (filtroDataOut) textoPeriodo = `Avaliação até ${formatarDataPT(filtroDataOut)}`;
+            
+            document.getElementById('periodo-texto-pdf').innerText = textoPeriodo;
+
+            if (dadosFiltrados.length === 0) {
+                document.getElementById('tabela-relatorio-body').innerHTML = '<tr><td colspan="4" class="text-center py-8 font-italic text-slate-500">Nenhum registo efetuado no período selecionado.</td></tr>';
+                if (chartBarras) chartBarras.destroy();
+                document.getElementById('grid-anexos-pdf').innerHTML = '';
+                document.getElementById('secao-anexos-pdf').classList.add('hidden');
+                return;
+            }
+
+            const somaPorArmadilha = []; const coresBarras = [];
+            for (let i = 1; i <= 9; i++) {
+                const regs = dadosFiltrados.filter(r => r.armadilha === i);
+                const somaArmadilha = regs.reduce((acc, r) => acc + r.quantidade, 0);
+                somaPorArmadilha.push(somaArmadilha);
+                
+                let corB = '#22c55e';
+                if (somaArmadilha >= 700) corB = '#dc2626';
+                else if (somaArmadilha >= 351) corB = '#eab308';
+                coresBarras.push(corB);
+            }
+
+            if (chartBarras) chartBarras.destroy();
+            const ctxB = document.getElementById('graficoBarras').getContext('2d');
+            chartBarras = new Chart(ctxB, {
+                type: 'bar',
+                data: { labels: ['Arm. 1','Arm. 2','Arm. 3','Arm. 4','Arm. 5','Arm. 6','Arm. 7','Arm. 8','Arm. 9'], datasets: [{ label: 'Moscas Coletadas', data: somaPorArmadilha, backgroundColor: coresBarras, borderRadius: 2 }] },
+                options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
+            });
+
+            const tbody = document.getElementById('tabela-relatorio-body');
+            const gridAnexos = document.getElementById('grid-anexos-pdf');
+            
+            tbody.innerHTML = ''; gridAnexos.innerHTML = ''; let temFotos = false;
+            
+            for (let i = 1; i <= 9; i++) {
+                const info = mapArmadilhas[i];
+                const total = somaPorArmadilha[i-1];
+                const risco = analisarRisco(total);
+                let textColor = '#000';
+                if(risco.corBg === 'bg-[#dc2626]' || risco.corBg === 'bg-[#eab308]' || risco.corBg === 'bg-[#22c55e]') textColor = '#fff';
+
+                tbody.innerHTML += `<tr><td style="font-family: 'Arial', sans-serif; font-size: 9pt;"><strong>${info.nome}</strong></td><td style="font-family: 'Arial', sans-serif; font-size: 8pt; color: #555;">${info.coord}</td><td align="center" style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 11pt;">${total}</td><td align="center" class="${risco.corBg}" style="color: ${textColor}; font-family: 'Arial', sans-serif; font-weight: bold; font-size: 9pt; letter-spacing: 1px;">${risco.texto}</td></tr>`;
+            }
+
+            const fotosParaRelatorio = [...dadosFiltrados].sort((a,b) => b.data.localeCompare(a.data));
+            
+            fotosParaRelatorio.forEach(r => {
+                if (r.foto) {
+                    temFotos = true;
+                    const info = mapArmadilhas[r.armadilha];
+                    gridAnexos.innerHTML += `<div class="border border-slate-300 p-2.5 bg-white avoid-break shadow-sm"><div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2"><div class="font-bold text-xs font-sans uppercase tracking-tight text-slate-800">${info.nome.split(' (')[0]}</div><div class="text-[9pt] font-sans font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">${formatarDataPT(r.data)}</div></div><div class="h-44 w-full flex items-center justify-center bg-slate-50 border border-slate-200 overflow-hidden mb-2"><img src="${r.foto}" class="w-full h-full object-contain"></div><div class="text-center font-sans"><span class="text-xs text-slate-500 uppercase tracking-widest">Coleta Registrada:</span> <span class="font-black text-sm ml-1">${r.quantidade}</span></div></div>`;
+                }
+            });
+
+            if (temFotos) document.getElementById('secao-anexos-pdf').classList.remove('hidden');
+            else document.getElementById('secao-anexos-pdf').classList.add('hidden');
+        }
+
+        function exportarDados() {
+            if (dadosMonitoramento.length === 0) return showToast('Não há dados.', 'error');
+            let csvContent = "\uFEFFData;Armadilha;Local;Quantidade;Risco;Temp(C);Humidade(%);Clima;Condicao;AcaoImediata;Anotacoes\n";
+            dadosMonitoramento.forEach(reg => {
+                let local = mapArmadilhas[reg.armadilha].nome;
+                let notas = reg.anotacoes ? reg.anotacoes.replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""') : "";
+                let risco = analisarRisco(reg.quantidade).texto; let acao = reg.acao || 'Nenhuma';
+                csvContent += `"${formatarDataPT(reg.data)}";"${reg.armadilha}";"${local}";"${reg.quantidade}";"${risco}";"${reg.temperatura||''}";"${reg.humidade||''}";"${reg.clima||''}";"${reg.condicao||'Boa'}";"${acao}";"${notas}"\n`;
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+            link.download = `Export_LMC_Controle_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function exportarBackup() {
+            if (dadosMonitoramento.length === 0) return showToast('Sem dados para backup.', 'error');
+            const blob = new Blob([JSON.stringify(dadosMonitoramento)], {type: 'application/json'});
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+            link.download = `DB_LMC_Controle_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        function exportarPDF() {
+            const relArea = document.getElementById('area-relatorio-pdf');
+            showToast('A preparar e renderizar Ofício PDF...', 'success');
+            renderizarGraficos();
+            relArea.classList.add('pdf-mode');
+
+            const opt = {
+                margin: [15, 10, 15, 10], filename: `Oficio_Oficial_LMC_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, useCORS: true, logging: false },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            setTimeout(() => {
+                html2pdf().set(opt).from(relArea).save().then(() => {
+                    relArea.classList.remove('pdf-mode');
+                    showToast('Ofício exportado com sucesso!');
+                });
+            }, 500);
+        }
+
+        function showToast(msg, type='success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let corBg = type === 'success' ? 'bg-emerald-600' : 'bg-rose-600';
+            let icone = type === 'success' ? 'fa-check' : 'fa-circle-exclamation';
+
+            toast.className = `${corBg} text-white px-5 py-3.5 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] transform transition-all translate-y-10 opacity-0 flex items-center gap-3 font-bold tracking-wide`;
+            toast.innerHTML = `<div class="bg-white/20 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid ${icone}"></i></div> <span>${msg}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 10);
+            setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(()=>toast.remove(),300); }, 3500);
+        }
+    </script>
+</body>
+</html>
